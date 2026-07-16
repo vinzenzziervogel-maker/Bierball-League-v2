@@ -1,4 +1,4 @@
- import streamlit as st
+import streamlit as st
 import psycopg2
 import psycopg2.extras
 import pandas as pd
