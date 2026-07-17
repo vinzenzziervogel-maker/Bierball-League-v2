@@ -781,7 +781,8 @@ st_autorefresh(interval=15000, key="live_refresh")
 st.sidebar.write(f"Angemeldet als **{display_name}**")
 
 APP_URL = os.environ.get("APP_URL", "https://bierball-league-v2.onrender.com")
-SHARE_TEXT = "Spiele ranked Bierball und finde heraus, wer die wahre Nummer 1 ist mit der Bassi Bierball App: " + APP_URL
+SHARE_MESSAGE = "Spiele ranked Bierball und finde heraus, wer die wahre Nummer 1 ist mit der Bassi Bierball App:"
+SHARE_TEXT = SHARE_MESSAGE + " " + APP_URL
 
 share_html = f"""
 <div style="margin-bottom: 10px;">
@@ -802,7 +803,7 @@ share_html = f"""
   btn.addEventListener("click", async () => {{
     const shareData = {{
       title: "Bassi Bierball",
-      text: {SHARE_TEXT!r},
+      text: {SHARE_MESSAGE!r},
       url: {APP_URL!r}
     }};
     if (navigator.share) {{
