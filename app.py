@@ -1119,51 +1119,6 @@ Bei identischem Wilson-Score entscheiden Trefferquote und Strafrundenquote gleic
             """
         )
 
-@st.dialog("Spielerprofil")
-def show_player_icon_dialog(display_name, username, icon_id):
-    st.markdown(
-        f'<div style="display:flex;align-items:center;gap:16px;padding:0.5rem 0;">'
-        f'{render_profile_icon_html(icon_id, size_px=64)}'
-        f'<div><b style="font-size:1.15rem;">{display_name}</b><br/>'
-        f'<span style="color:#6b7280;">@{username}</span></div>'
-        f'</div>',
-        unsafe_allow_html=True
-    )
-
-def render_ranking_table_with_clickable_names(display_df, id_lookup_df, table_key):
-    icon_lookup = get_icon_ids_for_users(id_lookup_df["id"].tolist())
-    username_lookup = {}
-    conn_users = get_conn()
-    try:
-        uname_df = pd.read_sql(
-            "SELECT id, username FROM users WHERE id = ANY(%s)",
-            conn_users, params=(id_lookup_df["id"].tolist(),)
-        )
-    finally:
-        conn_users.close()
-    for _, urow in uname_df.iterrows():
-        username_lookup[int(urow["id"])] = urow["username"]
-
-    header_cols = st.columns([0.6, 1, 2.2, 1, 1, 1.2, 1, 1.2])
-    headers = ["Rang", "", "Spieler", "Spiele", "Siege", "Siegquote", "Ø Treffer", "Trefferquote"]
-    for hc, htext in zip(header_cols, headers):
-        hc.markdown(f"**{htext}**")
-
-    for row_idx, row in display_df.iterrows():
-        uid = int(row["id"])
-        icon_id = icon_lookup.get(uid)
-        uname = username_lookup.get(uid, "")
-        rcols = st.columns([0.6, 1, 2.2, 1, 1, 1.2, 1, 1.2])
-        rcols[0].write(int(row["Rang"]))
-        rcols[1].markdown(render_profile_icon_html(icon_id, size_px=36), unsafe_allow_html=True)
-        if rcols[2].button(str(row["Spieler"]), key=f"{table_key}_name_{uid}"):
-            show_player_icon_dialog(row["Spieler"], uname, icon_id)
-        rcols[3].write(int(row["Spiele"]))
-        rcols[4].write(int(row["Siege"]))
-        rcols[5].write(row["Siegquote"])
-        rcols[6].write(row["Ø Treffer"] if pd.notna(row["Ø Treffer"]) else "–")
-        rcols[7].write(f"{row['Trefferquote']*100:.1f}%" if pd.notna(row["Trefferquote"]) else "–")
-
 def render_teams_vs(participants_df):
     team_a_names = participants_df.loc[participants_df["Team"] == "A", "Spieler"].tolist()
     team_b_names = participants_df.loc[participants_df["Team"] == "B", "Spieler"].tolist()
@@ -1469,21 +1424,36 @@ with tabs[0]:
 
     current_icon_id = get_user_icon_id(user_id)
 
-    icon_col1, icon_col2 = st.columns([1, 5])
-    with icon_col1:
+    PROFILE_TAB_ICON_SIZE = 200
+
+    icon_center_col1, icon_center_col2, icon_center_col3 = st.columns([1, 2, 1])
+    with icon_center_col2:
         if current_icon_id is not None and current_icon_id in PROFILE_ICONS:
-            st.markdown(render_profile_icon_html(current_icon_id, size_px=90), unsafe_allow_html=True)
-            if st.button("Ändern", key="change_icon_btn"):
-                st.session_state["show_icon_picker"] = True
-        else:
             st.markdown(
-                '<div style="width:90px;height:90px;border-radius:12px;background-color:#9ca3af;'
-                'display:flex;align-items:center;justify-content:center;color:#ffffff;'
-                'font-size:13px;font-weight:600;text-align:center;line-height:1.2;">Icon<br/>auswählen</div>',
+                f'<div style="display:flex;justify-content:center;">'
+                f'{render_profile_icon_html(current_icon_id, size_px=PROFILE_TAB_ICON_SIZE)}'
+                f'</div>',
                 unsafe_allow_html=True
             )
-            if st.button("Auswählen", key="pick_icon_btn"):
-                st.session_state["show_icon_picker"] = True
+            st.markdown("<div style='height:0.5rem;'></div>", unsafe_allow_html=True)
+            btn_center_col1, btn_center_col2, btn_center_col3 = st.columns([1, 1, 1])
+            with btn_center_col2:
+                if st.button("Ändern", key="change_icon_btn", use_container_width=True):
+                    st.session_state["show_icon_picker"] = True
+        else:
+            st.markdown(
+                f'<div style="display:flex;justify-content:center;">'
+                f'<div style="width:{PROFILE_TAB_ICON_SIZE}px;height:{PROFILE_TAB_ICON_SIZE}px;border-radius:16px;'
+                f'background-color:#9ca3af;display:flex;align-items:center;justify-content:center;color:#ffffff;'
+                f'font-size:22px;font-weight:600;text-align:center;line-height:1.3;">Icon<br/>auswählen</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+            st.markdown("<div style='height:0.5rem;'></div>", unsafe_allow_html=True)
+            btn_center_col1, btn_center_col2, btn_center_col3 = st.columns([1, 1, 1])
+            with btn_center_col2:
+                if st.button("Auswählen", key="pick_icon_btn", use_container_width=True):
+                    st.session_state["show_icon_picker"] = True
 
     if st.session_state.get("show_icon_picker", False):
         with st.container(border=True):
@@ -1619,22 +1589,25 @@ with tabs[1]:
 
         for _, fr in friends_df.iterrows():
             fr_icon_id = friend_icon_lookup.get(int(fr["id"]))
-            row_icon_col, row_name_col, row_btn1_col, row_btn2_col = st.columns([1, 3, 1, 1])
-            with row_icon_col:
-                st.markdown(render_profile_icon_html(fr_icon_id, size_px=48), unsafe_allow_html=True)
-            with row_name_col:
-                st.markdown(
-                    f'<div style="display:flex;align-items:center;height:48px;">'
-                    f'<span><b>{fr["display_name"]}</b> (@{fr["username"]})</span></div>',
-                    unsafe_allow_html=True
-                )
-            with row_btn1_col:
-                if st.button("Profil ansehen", key=f"view_friend_{fr['id']}"):
-                    st.session_state.selected_friend_id = int(fr["id"])
-                    st.rerun()
-            with row_btn2_col:
-                if st.button("⚡ Zugriff geben", key=f"grant_temp_{fr['id']}"):
-                    st.session_state[f"show_grant_{fr['id']}"] = True
+            with st.container(border=True):
+                name_row_icon_col, name_row_text_col = st.columns([1, 4])
+                with name_row_icon_col:
+                    st.markdown(render_profile_icon_html(fr_icon_id, size_px=40), unsafe_allow_html=True)
+                with name_row_text_col:
+                    st.markdown(
+                        f'<div style="display:flex;align-items:center;height:40px;">'
+                        f'<span><b>{fr["display_name"]}</b> (@{fr["username"]})</span></div>',
+                        unsafe_allow_html=True
+                    )
+
+                btn_row_col1, btn_row_col2 = st.columns(2)
+                with btn_row_col1:
+                    if st.button("Profil ansehen", key=f"view_friend_{fr['id']}", use_container_width=True):
+                        st.session_state.selected_friend_id = int(fr["id"])
+                        st.rerun()
+                with btn_row_col2:
+                    if st.button("⚡ Zugriff geben", key=f"grant_temp_{fr['id']}", use_container_width=True):
+                        st.session_state[f"show_grant_{fr['id']}"] = True
 
             if st.session_state.get(f"show_grant_{fr['id']}", False):
                 gc1, gc2 = st.columns([2, 1])
@@ -2046,9 +2019,9 @@ with tabs[5]:
     else:
         ranked_df = stats_df.reset_index(drop=True)
         ranked_df.insert(0, "Rang", ranked_df.index + 1)
-        display_ranked = ranked_df.copy()
+        display_ranked = ranked_df.drop(columns=["id"]).copy()
         display_ranked["Siegquote"] = (display_ranked["Siegquote"] * 100).round(1).astype(str) + " %"
-        render_ranking_table_with_clickable_names(display_ranked, ranked_df[["id"]], table_key="rangliste_gesamt")
+        st.dataframe(display_ranked, use_container_width=True, hide_index=True)
 
         st.divider()
         st.header("Meine Gruppen")
@@ -2073,9 +2046,9 @@ with tabs[5]:
                     group_ranked_df = group_stats_df.reset_index(drop=True)
                     group_ranked_df.insert(0, "Rang", group_ranked_df.index + 1)
                     group_stats_lookup[gid] = group_ranked_df
-                    display_group_ranked = group_ranked_df.copy()
+                    display_group_ranked = group_ranked_df.drop(columns=["id"]).copy()
                     display_group_ranked["Siegquote"] = (display_group_ranked["Siegquote"] * 100).round(1).astype(str) + " %"
-                    render_ranking_table_with_clickable_names(display_group_ranked, group_ranked_df[["id"]], table_key=f"rangliste_group_{gid}")
+                    st.dataframe(display_group_ranked, use_container_width=True, hide_index=True)
 
         st.divider()
         st.header("Individuelle Statistiken")
